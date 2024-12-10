@@ -7,31 +7,58 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.css" />
   <style>
-    body {
-        background-color: black;
+  body {
+    background-color: black;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+  }
+  
+  #map {
+    height: 400px; /* Adjust for mobile view */
+    width: 100%;
+  }
+
+  #controls {
+    margin: 10px;
+    display: flex;
+    flex-direction: column; /* Stack elements for better spacing on mobile */
+    gap: 10px;
+  }
+
+  #controls input,
+  #controls button {
+    padding: 10px;
+    font-size: 16px;
+    width: 100%; /* Full-width buttons and inputs for mobile */
+    box-sizing: border-box;
+  }
+
+  #warning {
+    margin: 10px;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  /* Media Query for Larger Screens */
+  @media (min-width: 768px) {
+    #map {
+      height: 500px;
     }
-    #map { 
-      height: 500px; 
-      width:500px;
-      }
+
     #controls {
-      margin: 10px;
-      display: flex;
-      gap: 5px;
-      width:500px;
+      flex-direction: row; /* Horizontal layout for larger screens */
+      gap: 15px;
     }
-    #controls input, #controls button {
-      padding: 5px;
-      font-size: 16px;
+
+    #controls input,
+    #controls button {
+      width: auto; /* Auto width on larger screens */
     }
-    #warning {
-      margin: 10px;
-      color: white;
-      font-weight: bold;
-    }
-    
-    
-  </style>
+  }
+</style>
 </head>
 <body>
   <div id="controls">
