@@ -1,0 +1,35 @@
+{
+    "unsafe_areas": [
+      {
+        "area": "TT Nagar",
+        "latitude": 23.243073,
+        "longitude": 77.419431
+      },
+      {
+        "area": "Arera Hills",
+        "latitude": 23.226226,
+        "longitude": 77.417027
+      },
+      {
+        "area": "Govindpura",
+        "latitude": 23.260247,
+        "longitude": 77.452578
+      },
+      {
+        "area": "BHEL area",
+        "latitude": 23.266038,
+        "longitude": 77.453499
+      },
+      {
+        "area": "Kalibadi Marg",
+        "latitude": 23.251937,
+        "longitude": 77.413147
+      },
+      {
+        "area": "Bhadbhada Marg",
+        "latitude": 23.217156,
+        "longitude": 77.397442
+      }
+    ]
+  }
+  

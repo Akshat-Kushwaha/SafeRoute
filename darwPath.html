@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Leaflet Route Finder with Unsafe Areas</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.css" />
+  <style>
+    body {
+        background-color: black;
+    }
+    #map { height: 500px; }
+    #controls {
+      margin: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    #controls input, #controls button {
+      padding: 5px;
+      font-size: 16px;
+    }
+    #warning {
+      margin: 10px;
+      color: white;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <input type="text" id="start" placeholder="Enter start location (lat,lng)">
+    <input type="text" id="end" placeholder="Enter end location (lat,lng)">
+    <button id="findRoute">Find Route</button>
+    <button id="switchRoute" style="display:none;">Switch Route</button>
+  </div>
+  <div id="warning"></div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.min.js"></script>
+  <script>
+    // Initialize the map
+    const map = L.map('map').setView([23.2599, 77.4126], 13); // Centered on Bhopal
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const unsafeAreas = [];
+    let routingControl;
+    let alternateRouteControl;
+    let currentRoute = 0; // 0 - first route, 1 - alternate route
+
+    // Fetch unsafe areas from the JSON file
+    fetch('hotspots.json')
+      .then(response => response.json())
+      .then(data => {
+        data.unsafe_areas.forEach(area => {
+          unsafeAreas.push({
+            lat: area.latitude,
+            lng: area.longitude,
+            radius: 100 // 100 meters
+          });
+
+          // Mark unsafe areas with circles and markers
+          L.marker([area.latitude, area.longitude])
+            .addTo(map)
+            .bindPopup(`<b>${area.area}</b>`);
+
+          L.circle([area.latitude, area.longitude], {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.5,
+            radius: 100 // 100 meters
+          }).addTo(map);
+        });
+      })
+      .catch(error => console.error('Error loading unsafe areas:', error));
+
+    // Add event listener to find route
+    document.getElementById('findRoute').addEventListener('click', () => {
+      const startInput = document.getElementById('start').value;
+      const endInput = document.getElementById('end').value;
+      const warningDiv = document.getElementById('warning');
+      warningDiv.textContent = ''; // Clear any previous warnings
+
+      if (!startInput || !endInput) {
+        alert('Please enter both start and end locations in "lat,lng" format.');
+        return;
+      }
+
+      const startCoords = startInput.split(',').map(Number);
+      const endCoords = endInput.split(',').map(Number);
+
+      if (routingControl) {
+        map.removeControl(routingControl); // Remove previous route
+      }
+
+      // Add routing control to find the route
+      routingControl = L.Routing.control({
+        waypoints: [
+          L.latLng(startCoords[0], startCoords[1]),
+          L.latLng(endCoords[0], endCoords[1])
+        ],
+        routeWhileDragging: true,
+        routeOptions: {
+            styles: [
+              {
+                color: 'blue',  // Set the route color to blue (change as needed)
+                weight: 5,      // Set the route line width
+                opacity: 0.7    // Set the route line opacity
+              }
+            ]
+        }
+      }).addTo(map);
+
+      routingControl.on('routesfound', function(e) {
+        const route = e.routes[0]; // Get the first route
+        const coordinates = route.coordinates;
+
+        // Check if any part of the route falls in an unsafe area
+        let isInUnsafeZone = false;
+        coordinates.forEach(coord => {
+          const point = L.latLng(coord.lat, coord.lng);
+          unsafeAreas.forEach(area => {
+            const circle = L.circle([area.lat, area.lng], { radius: area.radius });
+            if (point.distanceTo(circle.getLatLng()) <= area.radius) {
+              isInUnsafeZone = true;
+            }
+          });
+        });
+
+        if (isInUnsafeZone) {
+          warningDiv.textContent = 'Warning: The route passes through a red zone! Trying to find another route...';
+
+          // Try adding an alternate route (just an example of adding a new waypoint)
+          const alternateStart = L.latLng(startCoords[0], startCoords[1]);
+          const alternateEnd = L.latLng(endCoords[0], endCoords[1]);
+          const alternateWaypoint = L.latLng(startCoords[0] + 0.01, startCoords[1] + 0.01); // Example alternate waypoint
+
+          // Remove the old route and create a new alternate one
+          alternateRouteControl = L.Routing.control({
+            waypoints: [alternateStart, alternateWaypoint, alternateEnd],
+            routeWhileDragging: true,
+            routeOptions: {
+                styles: [
+                  {
+                    color: 'blue',  // Set the alternate route color to green
+                    weight: 5,       // Set the route line width
+                    opacity: 0.7     // Set the route line opacity
+                  }
+                ]
+            }
+          }).addTo(map);
+
+          // Show switch button
+          document.getElementById('switchRoute').style.display = 'inline-block';
+        }
+      });
+    });
+
+    // Add event listener to switch routes
+    document.getElementById('switchRoute').addEventListener('click', () => {
+      if (currentRoute === 0 && alternateRouteControl) {
+        map.removeControl(routingControl); // Remove current route
+        alternateRouteControl.addTo(map); // Show alternate route
+        currentRoute = 1; // Switch to alternate route
+        document.getElementById('switchRoute').textContent = 'Switch to Main Route';
+      } else {
+        map.removeControl(alternateRouteControl); // Remove alternate route
+        routingControl.addTo(map); // Show main route
+        currentRoute = 0; // Switch to main route
+        document.getElementById('switchRoute').textContent = 'Switch to Alternate Route';
+      }
+    });
+  </script>
+</body>
+</html>
