@@ -6,45 +6,86 @@
     <title>Dynamic Safe Route with Google Maps</title>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZXqhfB--i3Mb-V2ZaNqhypZGEKvbMnhs&libraries=places,geometry" async defer></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-        }
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Roboto', Arial, sans-serif;
+        background-color: #f4f4f9;
+        color: #333;
+    }
 
-        #map {
-            height: 90vh;
-            width: 100%;
-        }
+    #map {
+        height: 70vh; /* Reduce height to allow space for controls on smaller screens */
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 
+    #controls {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        padding: 20px;
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        margin: 10px;
+    }
+
+    #controls input,
+    #controls button {
+        padding: 12px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        outline: none;
+    }
+
+    #controls input:focus {
+        border-color: #007BFF;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    }
+
+    #controls button {
+        background-color: #007BFF;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    #controls button:hover {
+        background-color: #0056b3;
+    }
+
+    #warning {
+        font-size: 14px;
+        font-weight: bold;
+        text-align: center;
+        color: red;
+        margin-top: 5px;
+    }
+
+    @media (min-width: 768px) {
         #controls {
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
             gap: 10px;
-            background: white;
         }
 
         #controls input,
         #controls button {
-            padding: 10px;
-            font-size: 16px;
-            width: 100%;
+            font-size: 14px;
+            flex: 1;
         }
 
         #warning {
-            font-size: 14px;
-            font-weight: bold;
-            text-align: center;
-            color: red;
+            text-align: left;
+            margin-left: 15px;
         }
-
-        @media (min-width: 768px) {
-            #controls {
-                flex-direction: row;
-            }
-        }
-    </style>
+    }
+</style>
 </head>
 <body onload="initMap()">
     <div id="controls">
