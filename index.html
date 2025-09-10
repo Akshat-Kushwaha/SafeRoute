@@ -3,122 +3,528 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Safe Route (Leaflet)</title>
+  <title>Bhopal Safe Route | Responsive</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { margin:0; }
-    #map { height: 100vh; }
-    #warning {
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background: #f5f7fa;
+      color: #333;
+      overflow: hidden;
+    }
+    
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    header {
+      background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
+      color: white;
+      padding: 16px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo i {
+      font-size: 24px;
+    }
+    
+    .logo h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 50px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .btn-primary {
+      background: #00b894;
+    }
+    
+    .btn-primary:hover {
+      background: #00a885;
+    }
+    
+    .btn-warning {
+      background: #fdcb6e;
+      color: #2d3436;
+    }
+    
+    .btn-warning:hover {
+      background: #f9bf45;
+    }
+    
+    #map-container {
+      flex: 1;
+      position: relative;
+    }
+    
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    
+    #status-panel {
       position: absolute;
-      top: 10px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       background: white;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-weight: bold;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       z-index: 1000;
-      pointer-events: none; /* Make it non-interactive */
+      min-width: 300px;
+      text-align: center;
+      transition: all 0.3s ease;
     }
-    /* Hide the routing control panel */
+    
+    #status-panel.safe {
+      background: #00b894;
+      color: white;
+    }
+    
+    #status-panel.warning {
+      background: #fdcb6e;
+      color: #2d3436;
+    }
+    
+    #status-panel.danger {
+      background: #d63031;
+      color: white;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.03); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    
+    #instructions {
+      position: absolute;
+      top: 90px;
+      right: 20px;
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      z-index: 1000;
+      max-width: 280px;
+      font-size: 14px;
+    }
+    
+    #instructions h3 {
+      margin-bottom: 10px;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    #instructions ol {
+      padding-left: 20px;
+    }
+    
+    #instructions li {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    
+    .location-marker {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: #3498db;
+      box-shadow: 0 0 0 3px #3498db66;
+    }
+    
+    .geofence-info {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: white;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      z-index: 1000;
+      max-width: 250px;
+    }
+    
+    .geofence-info h3 {
+      margin-bottom: 8px;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .geofence-info p {
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+    
+    /* Customize routing machine style */
     .leaflet-routing-container {
       display: none;
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile controls */
+    #mobile-controls {
+      display: none;
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      gap: 10px;
+    }
+    
+    #mobile-controls .btn {
+      padding: 12px 20px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      
+      .logo h1 {
+        font-size: 1.3rem;
+      }
+      
+      #instructions, .geofence-info {
+        display: none;
+      }
+      
+      #mobile-controls {
+        display: flex;
+      }
+      
+      #status-panel {
+        bottom: 80px;
+        min-width: 250px;
+        padding: 12px 16px;
+        font-size: 14px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      header {
+        padding: 12px 16px;
+      }
+      
+      .logo h1 {
+        font-size: 1.1rem;
+      }
+      
+      .btn {
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+      
+      #status-panel {
+        min-width: 200px;
+        font-size: 13px;
+        bottom: 70px;
+      }
+      
+      #mobile-controls {
+        bottom: 80px;
+      }
+      
+      #mobile-controls .btn {
+        padding: 10px 16px;
+        font-size: 13px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="warning">Click map: Start → End → Reset</div>
-  <div id="map"></div>
+  <div id="app-container">
+    <header>
+      <div class="header-content">
+        <div class="logo">
+          <i class="fas fa-route"></i>
+          <h1>Bhopal Safe Route</h1>
+        </div>
+        <div class="controls">
+          <button id="locate-btn" class="btn">
+            <i class="fas fa-location-arrow"></i> My Location
+          </button>
+          <button id="reset-btn" class="btn btn-warning">
+            <i class="fas fa-redo"></i> Reset
+          </button>
+        </div>
+      </div>
+    </header>
+    
+    <div id="map-container">
+      <div id="map"></div>
+      
+      <div id="instructions">
+        <h3><i class="fas fa-info-circle"></i> Instructions</h3>
+        <ol>
+          <li>Click on the map to set your starting point</li>
+          <li>Click again to set your destination</li>
+          <li>The route will be calculated automatically</li>
+          <li>Red areas indicate unsafe zones to avoid</li>
+        </ol>
+      </div>
+      
+      <div class="geofence-info">
+        <h3><i class="fas fa-exclamation-triangle"></i> Safety Zones</h3>
+        <p>Red circles mark potentially unsafe areas in Bhopal. Routes passing through these zones will trigger warnings.</p>
+      </div>
+      
+      <div id="mobile-controls">
+        <button id="mobile-locate-btn" class="btn">
+          <i class="fas fa-location-arrow"></i>
+        </button>
+        <button id="mobile-reset-btn" class="btn btn-warning">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+      
+      <div id="status-panel">
+        <i class="fas fa-map-marker-alt"></i> Click to set starting point
+      </div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
   <script>
-    let map = L.map("map").setView([23.2599, 77.4126], 13);
-
-    // Tile layer
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors"
+    // Initialize map with user's location or default to Bhopal
+    let map = L.map("map");
+    
+    // Tile layer with a modern style
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      attribution: "&copy; OpenStreetMap, &copy; CartoDB",
+      maxZoom: 19
     }).addTo(map);
-
+    
+    // Set initial view to Bhopal (will be overridden by user location if available)
+    map.setView([23.2599, 77.4126], 13);
+    
     let clickCount = 0;
-    let startMarker, endMarker, routeControl;
+    let startMarker, endMarker, routeControl, userLocationMarker;
     const geofences = [
-      { lat: 23.2599, lng: 77.4126 },
-      { lat: 23.245, lng: 77.41 },
-      { lat: 23.27, lng: 77.43 },
-      { lat: 23.265, lng: 77.395 }
+      { lat: 23.2599, lng: 77.4126, name: "Central Area" },
+      { lat: 23.245, lng: 77.41, name: "Southern Zone" },
+      { lat: 23.27, lng: 77.43, name: "Northern District" },
+      { lat: 23.265, lng: 77.395, name: "Western Sector" }
     ];
     let geofenceCircles = [];
-
-    // Draw geofences
+    
+    // Draw geofences with improved styling
     geofences.forEach(area => {
       let circle = L.circle([area.lat, area.lng], {
-        radius: 200,
-        color: "red",
-        fillColor: "#f03",
-        fillOpacity: 0.4
+        radius: 500,
+        color: "#e74c3c",
+        fillColor: "#e74c3c",
+        fillOpacity: 0.3,
+        weight: 2
       }).addTo(map);
+      
+      // Add tooltip with area name
+      circle.bindTooltip(area.name, { 
+        permanent: false, 
+        direction: 'center',
+        className: 'geofence-tooltip'
+      });
+      
       geofenceCircles.push(circle);
     });
-
-    // Click handling
+    
+    // Try to get user's location
+    function locateUser() {
+      if (navigator.geolocation) {
+        document.getElementById('status-panel').innerHTML = '<span class="spinner"></span> Locating...';
+        
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            const userLatLng = [
+              position.coords.latitude, 
+              position.coords.longitude
+            ];
+            
+            // Set map view to user location
+            map.setView(userLatLng, 15);
+            
+            // Add user location marker
+            if (userLocationMarker) {
+              map.removeLayer(userLocationMarker);
+            }
+            
+            userLocationMarker = L.marker(userLatLng, {
+              icon: L.divIcon({
+                className: 'location-marker',
+                html: '<i class="fas fa-user" style="color: white; font-size: 10px; display: flex; justify-content: center; align-items: center; height: 100%;"></i>',
+                iconSize: [18, 18]
+              })
+            }).addTo(map);
+            
+            userLocationMarker.bindPopup("Your location").openPopup();
+            
+            document.getElementById('status-panel').innerHTML = 
+              '<i class="fas fa-check-circle"></i> Location found. Click to set starting point';
+          },
+          function(error) {
+            console.error("Error getting location:", error);
+            document.getElementById('status-panel').innerHTML = 
+              '<i class="fas fa-map-marker-alt"></i> Using Bhopal map. Click to set starting point';
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          }
+        );
+      } else {
+        alert("Geolocation is not supported by this browser.");
+      }
+    }
+    
+    // Set up click handling
     map.on("click", function(e) {
       clickCount++;
-
+      
       if (clickCount === 1) {
+        // Set start point
         if (startMarker) map.removeLayer(startMarker);
-        startMarker = L.marker(e.latlng, { draggable: false }).addTo(map).bindPopup("Start").openPopup();
-        document.getElementById("warning").innerText = "Start selected. Click to set End.";
+        startMarker = L.marker(e.latlng, { 
+          draggable: false,
+          icon: L.divIcon({
+            className: 'start-marker',
+            html: '<div style="background-color: #00b894; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+            iconSize: [24, 24]
+          })
+        }).addTo(map).bindPopup("Start").openPopup();
+        
+        document.getElementById("status-panel").innerHTML = 
+          '<i class="fas fa-map-marker-alt"></i> Start set. Click to set destination';
       }
       else if (clickCount === 2) {
+        // Set end point
         if (endMarker) map.removeLayer(endMarker);
-        endMarker = L.marker(e.latlng, { draggable: false }).addTo(map).bindPopup("End").openPopup();
+        endMarker = L.marker(e.latlng, { 
+          draggable: false,
+          icon: L.divIcon({
+            className: 'end-marker',
+            html: '<div style="background-color: #e74c3c; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+            iconSize: [24, 24]
+          })
+        }).addTo(map).bindPopup("Destination").openPopup();
+        
+        document.getElementById("status-panel").innerHTML = 
+          '<span class="spinner"></span> Calculating route...';
+        
         drawRoute(startMarker.getLatLng(), endMarker.getLatLng());
       }
       else {
         // Reset
-        clickCount = 0;
-        if (startMarker) map.removeLayer(startMarker);
-        if (endMarker) map.removeLayer(endMarker);
-        if (routeControl) map.removeControl(routeControl);
-        document.getElementById("warning").innerText = "Reset. Click to set Start.";
+        resetRoute();
       }
     });
-
+    
+    // Draw route between points
     function drawRoute(start, end) {
       if (routeControl) map.removeControl(routeControl);
-
+      
       routeControl = L.Routing.control({
         waypoints: [start, end],
         routeWhileDragging: false,
-        show: false,        // Hides the instructions panel
+        show: false,
         addWaypoints: false,
         lineOptions: {
-          styles: [{color: '#4a8cff', weight: 5}]
-        },
-        // Completely remove the container from DOM
-        createMarker: function() { return null; } // Remove waypoint markers from the route
+          styles: [{ color: '#3498db', weight: 5, opacity: 0.8 }]
+        }
       }).addTo(map);
-
+      
       routeControl.on("routesfound", function(e) {
         let coords = e.routes[0].coordinates;
         if (isRouteUnsafe(coords)) {
-          document.getElementById("warning").innerText = "⚠️ Route passes unsafe area!";
-          // Change route color to red if unsafe
-          routeControl.getPlan().waypoints = [start, end];
-          routeControl.once('routesfound', function(e) {
-            routeControl.setWaypoints([start, end]);
-            routeControl._line.setStyle({color: '#ff0000'});
-          });
+          document.getElementById("status-panel").className = "danger";
+          document.getElementById("status-panel").innerHTML = 
+            '<i class="fas fa-exclamation-triangle"></i> Route passes through unsafe area!';
         } else {
-          document.getElementById("warning").innerText = "✅ Safe route!";
+          document.getElementById("status-panel").className = "safe";
+          document.getElementById("status-panel").innerHTML = 
+            '<i class="fas fa-check-circle"></i> Safe route calculated!';
         }
       });
+      
+      routeControl.on("routingerror", function(e) {
+        document.getElementById("status-panel").className = "warning";
+        document.getElementById("status-panel").innerHTML = 
+          '<i class="fas fa-exclamation-circle"></i> Could not calculate route';
+      });
     }
-
+    
     // Check if route intersects geofence
     function isRouteUnsafe(coords) {
       return coords.some(coord => {
@@ -128,7 +534,29 @@
         });
       });
     }
+    
+    // Reset route and markers
+    function resetRoute() {
+      clickCount = 0;
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+      if (routeControl) map.removeControl(routeControl);
+      
+      document.getElementById("status-panel").className = "";
+      document.getElementById("status-panel").innerHTML = 
+        '<i class="fas fa-map-marker-alt"></i> Click to set starting point';
+    }
+    
+    // Set up button event listeners
+    document.getElementById('locate-btn').addEventListener('click', locateUser);
+    document.getElementById('reset-btn').addEventListener('click', resetRoute);
+    document.getElementById('mobile-locate-btn').addEventListener('click', locateUser);
+    document.getElementById('mobile-reset-btn').addEventListener('click', resetRoute);
+    
+    // Try to get user location when page loads
+    window.addEventListener('load', function() {
+      setTimeout(locateUser, 1000);
+    });
   </script>
 </body>
 </html>
-
