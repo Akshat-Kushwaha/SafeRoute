@@ -1,250 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Safe Route with Google Maps</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZXqhfB--i3Mb-V2ZaNqhypZGEKvbMnhs&libraries=places,geometry" async defer></script>
-    <style>
-    body {
-        margin: 0;
-        padding: 0;
-        font-family: 'Roboto', Arial, sans-serif;
-        background-color: #f4f4f9;
-        color: #333;
-    }
-
-    #map {
-        height: 70vh; /* Reduce height to allow space for controls on smaller screens */
-        width: 100%;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    #controls {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        padding: 20px;
-        background: #ffffff;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
-        margin: 10px;
-    }
-
-    #controls input,
-    #controls button {
-        padding: 12px;
-        font-size: 16px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        outline: none;
-    }
-
-    #controls input:focus {
-        border-color: #007BFF;
-        box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-    }
-
-    #controls button {
-        background-color: #007BFF;
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-weight: bold;
-    }
-
-    #controls button:hover {
-        background-color: #0056b3;
-    }
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bhopal Safe Route (Leaflet)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+  <style>
+    body { margin:0; }
+    #map { height: 100vh; }
     #warning {
-        font-size: 14px;
-        font-weight: bold;
-        text-align: center;
-        color: red;
-        margin-top: 5px;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 1000;
+      pointer-events: none; /* Make it non-interactive */
     }
-
-    @media (min-width: 768px) {
-        #controls {
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        #controls input,
-        #controls button {
-            font-size: 14px;
-            flex: 1;
-        }
-
-        #warning {
-            text-align: left;
-            margin-left: 15px;
-        }
+    /* Hide the routing control panel */
+    .leaflet-routing-container {
+      display: none;
     }
-</style>
+  </style>
 </head>
-<body onload="initMap()">
-    <div id="controls">
-        <input type="text" id="start" placeholder="Enter start location">
-        <input type="text" id="end" placeholder="Enter end location">
-        <button id="findRoute">Find Route</button>
-        <div id="warning"></div>
-    </div>
-    <div id="map"></div>
+<body>
+  <div id="warning">Click map: Start → End → Reset</div>
+  <div id="map"></div>
 
-    <script>
-        let map;
-        let startAutocomplete, endAutocomplete;
-        let directionsService, directionsRenderer;
-        const unsafeAreas = [];
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
-        function initMap() {
-            // Initialize the map
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 23.2599, lng: 77.4126 }, // Centered on Bhopal
-                zoom: 13,
-            });
+  <script>
+    let map = L.map("map").setView([23.2599, 77.4126], 13);
 
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+    // Tile layer
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
 
-            // Initialize autocomplete
-            const startInput = document.getElementById('start');
-            const endInput = document.getElementById('end');
+    let clickCount = 0;
+    let startMarker, endMarker, routeControl;
+    const geofences = [
+      { lat: 23.2599, lng: 77.4126 },
+      { lat: 23.245, lng: 77.41 },
+      { lat: 23.27, lng: 77.43 },
+      { lat: 23.265, lng: 77.395 }
+    ];
+    let geofenceCircles = [];
 
-            startAutocomplete = new google.maps.places.Autocomplete(startInput);
-            endAutocomplete = new google.maps.places.Autocomplete(endInput);
+    // Draw geofences
+    geofences.forEach(area => {
+      let circle = L.circle([area.lat, area.lng], {
+        radius: 200,
+        color: "red",
+        fillColor: "#f03",
+        fillOpacity: 0.4
+      }).addTo(map);
+      geofenceCircles.push(circle);
+    });
 
-            // Load unsafe areas from JSON
-            fetch('hotspots.json')
-                .then(response => response.json())
-                .then(data => {
-                    data.unsafe_areas.forEach(area => {
-                        unsafeAreas.push({
-                            lat: area.latitude,
-                            lng: area.longitude,
-                            radius: 100,
-                        });
+    // Click handling
+    map.on("click", function(e) {
+      clickCount++;
 
-                        // Draw circles for unsafe areas
-                        new google.maps.Circle({
-                            strokeColor: "#FF0000",
-                            strokeOpacity: 0.8,
-                            strokeWeight: 2,
-                            fillColor: "#FF0000",
-                            fillOpacity: 0.35,
-                            map: map,
-                            center: { lat: area.latitude, lng: area.longitude },
-                            radius: 100,
-                        });
+      if (clickCount === 1) {
+        if (startMarker) map.removeLayer(startMarker);
+        startMarker = L.marker(e.latlng, { draggable: false }).addTo(map).bindPopup("Start").openPopup();
+        document.getElementById("warning").innerText = "Start selected. Click to set End.";
+      }
+      else if (clickCount === 2) {
+        if (endMarker) map.removeLayer(endMarker);
+        endMarker = L.marker(e.latlng, { draggable: false }).addTo(map).bindPopup("End").openPopup();
+        drawRoute(startMarker.getLatLng(), endMarker.getLatLng());
+      }
+      else {
+        // Reset
+        clickCount = 0;
+        if (startMarker) map.removeLayer(startMarker);
+        if (endMarker) map.removeLayer(endMarker);
+        if (routeControl) map.removeControl(routeControl);
+        document.getElementById("warning").innerText = "Reset. Click to set Start.";
+      }
+    });
 
-                        // Add marker for unsafe areas
-                        new google.maps.Marker({
-                            position: { lat: area.latitude, lng: area.longitude },
-                            map: map,
-                            title: area.area,
-                        });
-                    });
-                })
-                .catch(error => console.error("Error loading unsafe areas:", error));
+    function drawRoute(start, end) {
+      if (routeControl) map.removeControl(routeControl);
 
-            // Add event listener for the "Find Route" button
-            document.getElementById('findRoute').addEventListener('click', findRoute);
+      routeControl = L.Routing.control({
+        waypoints: [start, end],
+        routeWhileDragging: false,
+        show: false,        // Hides the instructions panel
+        addWaypoints: false,
+        lineOptions: {
+          styles: [{color: '#4a8cff', weight: 5}]
+        },
+        // Completely remove the container from DOM
+        createMarker: function() { return null; } // Remove waypoint markers from the route
+      }).addTo(map);
+
+      routeControl.on("routesfound", function(e) {
+        let coords = e.routes[0].coordinates;
+        if (isRouteUnsafe(coords)) {
+          document.getElementById("warning").innerText = "⚠️ Route passes unsafe area!";
+          // Change route color to red if unsafe
+          routeControl.getPlan().waypoints = [start, end];
+          routeControl.once('routesfound', function(e) {
+            routeControl.setWaypoints([start, end]);
+            routeControl._line.setStyle({color: '#ff0000'});
+          });
+        } else {
+          document.getElementById("warning").innerText = "✅ Safe route!";
         }
+      });
+    }
 
-        function findRoute() {
-            const startPlace = startAutocomplete.getPlace();
-            const endPlace = endAutocomplete.getPlace();
-
-            if (!startPlace || !endPlace || !startPlace.geometry || !endPlace.geometry) {
-                document.getElementById('warning').innerText = 'Please select valid start and end locations.';
-                return;
-            }
-
-            const startLocation = startPlace.geometry.location;
-            const endLocation = endPlace.geometry.location;
-
-            const request = {
-                origin: startLocation,
-                destination: endLocation,
-                travelMode: google.maps.TravelMode.DRIVING,
-            };
-
-            directionsService.route(request, (result, status) => {
-                if (status === google.maps.DirectionsStatus.OK) {
-                    const routeCoords = result.routes[0].overview_path.map(coord => ({
-                        lat: coord.lat(),
-                        lng: coord.lng(),
-                    }));
-
-                    if (isRouteUnsafe(routeCoords)) {
-                        document.getElementById('warning').innerText = 'Route intersects unsafe areas. Adjusting route...';
-                        adjustRoute(startLocation, endLocation, routeCoords);
-                    } else {
-                        document.getElementById('warning').innerText = 'Route is safe!';
-                        directionsRenderer.setDirections(result);
-                    }
-                } else {
-                    document.getElementById('warning').innerText = 'Failed to calculate route. Please try again.';
-                }
-            });
-        }
-
-        function isRouteUnsafe(routeCoords) {
-            return routeCoords.some(coord => {
-                return unsafeAreas.some(area => {
-                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                        new google.maps.LatLng(coord.lat, coord.lng),
-                        new google.maps.LatLng(area.lat, area.lng)
-                    );
-                    return distance <= area.radius;
-                });
-            });
-        }
-
-        function adjustRoute(startLocation, endLocation, routeCoords) {
-            // Find waypoints outside unsafe areas
-            const waypoints = [];
-
-            unsafeAreas.forEach(area => {
-                const isNearby = routeCoords.some(coord => {
-                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                        new google.maps.LatLng(coord.lat, coord.lng),
-                        new google.maps.LatLng(area.lat, area.lng)
-                    );
-                    return distance <= area.radius;
-                });
-
-                if (isNearby) {
-                    // Offset slightly to bypass unsafe areas
-                    waypoints.push({
-                        location: new google.maps.LatLng(area.lat + 0.002, area.lng + 0.002),
-                        stopover: false,
-                    });
-                }
-            });
-
-            const request = {
-                origin: startLocation,
-                destination: endLocation,
-                travelMode: google.maps.TravelMode.DRIVING,
-                waypoints: waypoints,
-                optimizeWaypoints: true,
-            };
-
-            directionsService.route(request, (result, status) => {
-                if (status === google.maps.DirectionsStatus.OK) {
-                    directionsRenderer.setDirections(result);
-                    document.getElementById('warning').innerText = 'Adjusted route successfully!';
-                } else {
-                    document.getElementById('warning').innerText = 'Failed to adjust route.';
-                }
-            });
-        }
-    </script>
+    // Check if route intersects geofence
+    function isRouteUnsafe(coords) {
+      return coords.some(coord => {
+        return geofenceCircles.some(circle => {
+          let distance = map.distance([coord.lat, coord.lng], circle.getLatLng());
+          return distance <= circle.getRadius();
+        });
+      });
+    }
+  </script>
 </body>
 </html>
