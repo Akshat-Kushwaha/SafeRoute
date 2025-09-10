@@ -376,14 +376,24 @@
       { lat: 23.2599, lng: 77.4126, name: "Central Area" },
       { lat: 23.245, lng: 77.41, name: "Southern Zone" },
       { lat: 23.27, lng: 77.43, name: "Northern District" },
-      { lat: 23.265, lng: 77.395, name: "Western Sector" }
+      { lat: 23.265, lng: 77.395, name: "Western Sector" },
+       {
+        "name": "Arera Hills",
+        "lat": 23.226226,
+        "lng": 77.417027
+      },
+      {
+        "name": "Bhadbhada Marg",
+        "lat": 23.217156,
+        "lng": 77.397442
+      }
     ];
     let geofenceCircles = [];
     
     // Draw geofences with improved styling
     geofences.forEach(area => {
       let circle = L.circle([area.lat, area.lng], {
-        radius: 500,
+        radius: 100,
         color: "#e74c3c",
         fillColor: "#e74c3c",
         fillOpacity: 0.3,
@@ -560,6 +570,7 @@
   </script>
 </body>
 </html>
+
 
 
 
